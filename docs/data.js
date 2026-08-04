@@ -17,7 +17,7 @@
 const CONFIG = {
   title: "CALAMITIES",
   subtitle: "Location Scout",
-  googleMapsKey: "",              // <-- paste your key here for real photos
+  googleMapsKey: "AIzaSyDM5JNRlHkIRkK4YCcUJcVYFjrRj0ZBGLQ",              // <-- paste your key here for real photos
 
   regions: [
     {
