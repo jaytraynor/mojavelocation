@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CALAMITIES — Enchantment Scout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Courier+Prime:wght@400;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+:root{
+  --paper:#EAE3D3; --panel:#201B15; --ink:#1A1611; --ink-2:#5A4E3E;
+  --bone:#F2ECDD; --oxblood:#8A2417; --caliche:#B7A57F; --line:rgba(183,165,127,.55);
+  --idea:#8a7f6c; --toscout:#B0731A; --scouted:#2C6E8F; --confirmed:#3E7D4E;
+  --rc:#8A2417;
+  --f-disp:'Oswald',system-ui,sans-serif; --f-mono:'Courier Prime',monospace; --f-body:'Spectral',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);display:flex;flex-direction:column}
+button{font-family:inherit;cursor:pointer}
+::selection{background:var(--oxblood);color:var(--bone)}
+
+/* header */
+.hdr{background:var(--panel);color:var(--bone);display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:12px 18px;border-bottom:2px solid var(--oxblood);flex-wrap:wrap}
+.hdr-l{display:flex;align-items:baseline;gap:12px}
+.hdr h1{font-family:var(--f-disp);font-weight:700;letter-spacing:.06em;font-size:22px;margin:0;text-transform:uppercase}
+.hdr .loc{font-family:var(--f-mono);font-size:12px;color:var(--caliche);letter-spacing:.03em}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-family:var(--f-mono);font-size:12px;color:var(--caliche);background:transparent;
+  border:1px solid #3a332a;border-radius:20px;padding:4px 12px}
+.pill:hover{color:var(--bone);border-color:var(--caliche)}
+.pill[aria-selected="true"]{background:var(--rc);color:#fff;border-color:var(--rc)}
+.pill .c{opacity:.7;margin-left:5px}
+
+/* toolbar */
+.bar{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--bone);border-bottom:1px solid var(--line)}
+.search{flex:1;max-width:420px;font-family:var(--f-body);font-size:15px;padding:8px 12px;
+  border:1px solid var(--caliche);border-radius:6px;background:#fff;color:var(--ink)}
+.count{font-family:var(--f-mono);font-size:12px;color:var(--ink-2)}
+.ghost{font-family:var(--f-mono);font-size:12px;color:var(--rc);background:#fff;border:1px solid var(--caliche);
+  border-radius:6px;padding:7px 12px}
+.ghost:hover{background:var(--paper)}
+.bar .ghost{margin-left:auto}
+
+/* body */
+.wrap{flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0}
+.list{overflow-y:auto;background:var(--bone);border-right:1px solid var(--line);padding:8px}
+.row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);
+  border-left:4px solid var(--idea);border-radius:6px;padding:9px 11px;margin-bottom:7px}
+.row:hover{border-color:var(--rc);box-shadow:0 4px 12px -8px rgba(23,19,15,.5)}
+.row.sel{border-color:var(--rc);border-left-color:var(--rc);background:var(--paper)}
+.row.s-to-scout{border-left-color:var(--toscout)} .row.s-scouted{border-left-color:var(--scouted)}
+.row.s-confirmed{border-left-color:var(--confirmed)}
+.row .rn{font-family:var(--f-disp);font-weight:600;text-transform:uppercase;letter-spacing:.01em;font-size:14px;line-height:1.15}
+.row .rs{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);margin-top:2px}
+.row .rt{font-family:var(--f-mono);font-size:10px;color:var(--rc);display:block;margin-top:2px}
+.row .go{margin-left:auto;color:var(--caliche);font-size:18px;flex:none}
+.empty{padding:26px 16px;text-align:center;color:var(--ink-2);font-family:var(--f-mono);font-size:13px}
+
+#map{min-height:300px;z-index:0;background:#cfc7b3}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal[hidden]{display:none}
+.modal-bg{position:absolute;inset:0;background:rgba(20,16,12,.7)}
+.sheet{position:relative;z-index:1;width:min(880px,96vw);max-height:92vh;overflow:auto;background:var(--bone);
+  border:1px solid var(--caliche);border-radius:10px;box-shadow:0 30px 80px -30px rgba(0,0,0,.7);display:flex;flex-direction:column}
+.x{position:absolute;top:8px;right:10px;z-index:3;background:rgba(20,16,12,.6);color:#fff;border:none;border-radius:50%;
+  width:34px;height:34px;font-size:22px;line-height:1}
+.x:hover{background:var(--oxblood)}
+.gallery{width:100%;aspect-ratio:16/9;background:#000;position:relative;overflow:hidden}
+.gallery img,.gallery iframe{width:100%;height:100%;object-fit:cover;border:0;display:block}
+.slide-label{position:absolute;left:10px;bottom:10px;font-family:var(--f-mono);font-size:11px;color:#fff;
+  background:rgba(20,16,12,.6);padding:3px 8px;border-radius:4px}
+.thumbs{display:flex;gap:6px;padding:8px 12px;overflow-x:auto;background:var(--panel)}
+.thumb{flex:none;width:66px;height:44px;border:2px solid transparent;border-radius:4px;overflow:hidden;background:#333;padding:0}
+.thumb.act{border-color:var(--oxblood)}
+.thumb img,.thumb .tv{width:100%;height:100%;object-fit:cover}
+.thumb .tv{display:flex;align-items:center;justify-content:center;color:#cdbfa3;font-family:var(--f-mono);font-size:9px;text-align:center}
+.info{padding:16px 20px 20px}
+.info h2{font-family:var(--f-disp);font-weight:700;text-transform:uppercase;letter-spacing:.02em;font-size:24px;margin:0 0 4px}
+.info .tag{font-family:var(--f-mono);font-size:12px;color:var(--rc);margin-bottom:8px}
+.info .addr{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);margin-bottom:8px}
+.info .notes{font-size:16px;line-height:1.5;margin-bottom:14px}
+.dlinks{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.dlinks a{font-family:var(--f-mono);font-size:12px;color:#fff;background:var(--rc);border-radius:6px;padding:8px 14px;text-decoration:none}
+.dlinks a.alt{background:var(--panel)}
+.dlinks a:hover{opacity:.9}
+.nav{display:flex;gap:8px}
+
+/* leaflet */
+.town-tip{background:transparent;border:none;box-shadow:none;font-family:var(--f-mono);font-size:10px;color:var(--ink);
+  text-shadow:0 0 3px var(--paper),0 0 3px var(--paper);padding:0}
+.leaflet-popup-content{font-family:var(--f-body);font-size:13px;margin:9px 11px}
+.leaflet-popup-content b{font-family:var(--f-disp);text-transform:uppercase}
+
+.foot{background:var(--panel);color:#8a7f6c;font-family:var(--f-mono);font-size:11px;padding:8px 18px;border-top:1px solid #000}
+
+@media(max-width:820px){
+  .wrap{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .list{max-height:38vh}
+  #map{min-height:40vh}
+}
+:focus-visible{outline:2px solid var(--oxblood);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- v3: area breadcrumb, placeholder gallery ---- */
+.areas{display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--paper);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.areas .crumb{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em}
+.apill{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.03em;font-size:13px;font-weight:600;
+  color:var(--rc);background:#fff;border:1px solid var(--rc);border-radius:20px;padding:4px 14px}
+.apill[aria-selected="true"]{background:var(--rc);color:#fff}
+.apill .c{font-family:var(--f-mono);font-weight:400;opacity:.75;margin-left:6px}
+.gallery .noimg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;color:#cdbfa3;background:#26201a;text-align:center;padding:20px}
+.gallery .noimg .camera{font-size:40px;filter:grayscale(.3);opacity:.8}
+.gallery .noimg .hint{font-family:var(--f-mono);font-size:12px;color:#9a8f7b;max-width:340px;line-height:1.5}
+
+/* ---- v4: scene dropdown ---- */
+.showlbl{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.select{font-family:var(--f-body);font-size:14px;padding:6px 8px;border:1px solid var(--caliche);border-radius:6px;background:#fff;color:var(--ink);max-width:220px}
+
+/* ---- v5: base note + 3-photo add slots ---- */
+.rnote{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);padding:6px 18px;background:var(--paper);border-bottom:1px solid var(--line)}
+.thumb.add{background:#2a231b;border-color:#3a332a}
+.thumb.add .addn{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#8a7f6c;font-family:var(--f-mono);font-size:12px}
+.thumb.add.act{border-color:var(--oxblood)}
+.gallery .noimg code{font-family:var(--f-mono);background:#3a332a;color:#e8dcc2;padding:1px 5px;border-radius:3px}
+
+/* ---- v6: gallery arrows, anchor/all sub-section pills ---- */
+.galwrap{position:relative}
+.garrow{position:absolute;top:50%;transform:translateY(-50%);z-index:4;width:40px;height:40px;border-radius:50%;
+  border:none;background:rgba(20,16,12,.55);color:#fff;font-size:26px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.garrow:hover{background:var(--oxblood)}
+.gprev{left:10px}.gnext{right:10px}
+.apill.all{border-style:dashed}
+.apill.anchor{font-weight:700}
+.apill.anchor[aria-selected="true"]{background:var(--rc);color:#fff}
+
+/* ---- v7: favorites, status, logistics, hover preview, lightbox ---- */
+.row{align-items:center}
+.row .rstar{flex:none;font-size:16px;color:#b9ab8c;width:20px;text-align:center}
+.row .rstar.on{color:#F2C14E}
+.row .rmid{display:flex;flex-direction:column;min-width:0;flex:1}
+.row .rdot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--idea);margin-left:4px}
+.row.st-scouting .rdot{background:var(--toscout)} .row.st-scouted .rdot{background:var(--scouted)}
+.row.st-cleared .rdot{background:var(--confirmed)} .row.st-rejected .rdot{background:#9b3b2f}
+.row .go{display:none}
+.select{max-width:150px}
+
+/* detail actions */
+.dactions{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.favbtn{font-family:var(--f-mono);font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--caliche);background:#fff;color:var(--ink-2)}
+.favbtn.on{background:#F2C14E;border-color:#d9a72f;color:#3a2c00}
+.stbtn{font-family:var(--f-mono);font-size:11px;padding:5px 9px;border-radius:6px;border:1px solid var(--caliche);background:#fff;color:var(--ink-2)}
+.stbtn.on{color:#fff;border-color:transparent}
+.stbtn.st-idea.on{background:var(--idea)} .stbtn.st-scouting.on{background:var(--toscout)}
+.stbtn.st-scouted.on{background:var(--scouted)} .stbtn.st-cleared.on{background:var(--confirmed)}
+.stbtn.st-rejected.on{background:#9b3b2f}
+
+/* logistics */
+.logistics{display:flex;flex-direction:column;gap:4px;margin:4px 0 14px}
+.logistics .lg{display:flex;gap:8px;font-size:14px}
+.logistics .lgk{font-family:var(--f-mono);font-size:11px;color:var(--rc);min-width:78px;text-transform:uppercase;letter-spacing:.03em;padding-top:2px}
+.logistics .lgv{color:var(--ink)}
+
+/* gallery img clickable */
+.gallery img{cursor:zoom-in}
+
+/* hover preview */
+.preview{position:fixed;top:150px;right:16px;width:250px;z-index:900;display:none;background:var(--panel);
+  border:1px solid var(--caliche);border-radius:10px;padding:10px;box-shadow:0 18px 40px -18px rgba(0,0,0,.6)}
+.preview .pv-name{font-family:var(--f-disp);text-transform:uppercase;font-weight:600;color:var(--bone);font-size:14px;line-height:1.15}
+.preview .pv-sub{font-family:var(--f-mono);font-size:10.5px;color:var(--caliche);margin:2px 0 8px}
+.preview .pv-imgs{display:flex;flex-direction:column;gap:6px}
+.preview .pv-imgs img{width:100%;height:130px;object-fit:cover;border-radius:6px;display:block;background:#333}
+.preview .pv-none{color:#8a7f6c;font-family:var(--f-mono);font-size:12px;text-align:center;padding:16px 0}
+.preview .pv-hint{font-family:var(--f-mono);font-size:10px;color:#8a7f6c;text-align:center;margin-top:8px}
+@media(max-width:900px){.preview{display:none!important}}
+
+/* lightbox */
+.lightbox{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.lightbox[hidden]{display:none}
+.lb-bg{position:absolute;inset:0;background:rgba(10,8,6,.92)}
+#lb-img{position:relative;z-index:1;max-width:94vw;max-height:90vh;transform-origin:center;transition:transform .12s ease;cursor:zoom-in;user-select:none}
+.lb-hint{position:absolute;bottom:16px;left:0;right:0;z-index:2;text-align:center;color:#cdbfa3;font-family:var(--f-mono);font-size:12px}
+
+/* ---- v8: mobile + lightbox close ---- */
+.lb-close{position:absolute;top:12px;right:14px;z-index:3;width:42px;height:42px;border-radius:50%;
+  background:rgba(20,16,12,.6);color:#fff;border:none;font-size:26px;line-height:1;cursor:pointer}
+.lb-close:hover{background:var(--oxblood)}
+.pills,.areas{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;flex-wrap:nowrap}
+.pill,.apill{white-space:nowrap;flex:none}
+
+@media(max-width:820px){
+  .hdr{padding:10px 12px}
+  .hdr h1{font-size:19px} .hdr .loc{display:none}
+  .bar{gap:6px;padding:8px 10px;flex-wrap:wrap}
+  .search{max-width:none;flex:1 1 100%;order:-1}
+  .showlbl{font-size:11px} .select{max-width:44vw}
+  .bar .ghost{margin-left:0}
+  .wrap{grid-template-columns:1fr;grid-template-rows:auto auto}
+  .list{max-height:none;order:2;border-right:none}
+  #map{order:1;height:42vh;min-height:240px}
+  .row{padding:11px}                    /* bigger tap targets */
+  .row .rn{font-size:15px}
+  .sheet{width:100vw;max-height:100vh;border-radius:0}
+  .gallery{aspect-ratio:4/3}
+  .garrow{width:44px;height:44px}
+  .info h2{font-size:20px}
+  .thumb{width:60px;height:40px}
+  .foot{font-size:10px;padding:7px 12px}
+}
+@media(max-width:520px){
+  .dactions{gap:5px}
+  .stbtn{font-size:10px;padding:6px 8px}   /* thumb-friendly */
+  .favbtn{font-size:11px}
+}
+
+/* ---- v8: mobile + google-photo label ---- */
+.mobtabs{display:none}
+@media(max-width:820px){
+  .mobtabs{display:flex;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid #000}
+  .mobtabs button{flex:1;font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.05em;font-weight:600;
+    font-size:14px;padding:10px;border-radius:6px;border:1px solid var(--caliche);background:var(--bone);color:var(--ink)}
+  body.show-map #tab-map, body.show-list #tab-list{background:var(--rc);color:#fff;border-color:var(--rc)}
+  .wrap{grid-template-columns:1fr;grid-template-rows:1fr}
+  .list{max-height:none;height:100%;border-right:none}
+  #map{height:100%;display:none}
+  body.show-map #map{display:block}
+  body.show-map .list{display:none}
+  body.show-list .list{display:block}
+  body.show-list #map{display:none}
+  .sheet{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
+  .modal{padding:0}
+  .gallery{aspect-ratio:auto;height:42vh}
+  .bar{flex-wrap:wrap;gap:8px}
+  .search{max-width:none;flex:1 1 100%}
+  .showlbl{flex:1 1 46%}
+  .select{max-width:none;width:100%}
+  .bar .ghost{margin-left:0;flex:1 1 100%}
+  .hdr{padding:10px 14px}.hdr h1{font-size:19px}
+  .hdr .loc{display:none}
+  .garrow{width:34px;height:34px;font-size:22px}
+}
+@media(max-width:420px){
+  .pill{padding:4px 9px;font-size:11px}
+  .apill{font-size:12px;padding:4px 10px}
+}
+
+/* ---- v9: right photo rail + media tab ---- */
+.galrow{display:flex;gap:8px;padding:10px 12px 0;align-items:stretch}
+.galrow .galwrap{flex:1;min-width:0}
+.galrow .thumbs{flex:none;width:104px;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:0;background:transparent;max-height:min(56vh,420px)}
+.galrow .thumbs .thumb{width:100%;height:66px;flex:none}
+.tabs2{display:flex;gap:6px;margin:6px 0 10px;border-bottom:1px solid var(--line)}
+.t2{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.04em;font-weight:600;font-size:13px;
+  background:none;border:none;padding:8px 12px;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.t2.on{color:var(--rc);border-bottom-color:var(--rc)}
+.tabpane[hidden]{display:none}
+.media-add{display:flex;gap:8px;margin-bottom:12px}
+.media-add input{flex:1;font-family:var(--f-body);font-size:14px;padding:8px 10px;border:1px solid var(--caliche);border-radius:6px;background:#fff}
+.media-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.media-cell{position:relative;background:#000;border-radius:8px;overflow:hidden;min-height:90px;display:flex;align-items:center;justify-content:center}
+.media-cell img,.media-cell video,.media-cell iframe{width:100%;display:block;border:0}
+.media-cell img,.media-cell video{max-height:220px;object-fit:cover}
+.media-cell iframe{aspect-ratio:16/9}
+.media-file{display:flex;align-items:center;justify-content:center;min-height:90px;padding:14px;color:var(--bone);font-family:var(--f-mono);font-size:12px;text-decoration:none;text-align:center}
+.media-file:hover{background:#1a1611}
+.media-x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(20,16,12,.7);color:#fff;font-size:16px;line-height:1;cursor:pointer}
+.media-x:hover{background:var(--oxblood)}
+.media-empty{color:var(--ink-2);font-family:var(--f-mono);font-size:12px;padding:10px 0}
+@media(max-width:820px){
+  .galrow{flex-direction:column;padding:0}
+  .galrow .thumbs{width:auto;flex-direction:row;overflow-x:auto;max-height:none;padding:8px 12px}
+  .galrow .thumbs .thumb{width:84px;height:56px}
+}
+
+/* ---- v10: aerial gallery + media categories + tagged options ---- */
+.gallery iframe.gmap{width:100%;height:100%;border:0;display:block}
+.gallery .noimg{color:#cdbfa3;font-family:var(--f-mono);font-size:13px}
+/* scene-tagged options */
+.row.tagged{background:#faf4e4}
+.row.tagged .rn::after{content:" \25C6";color:#C99A2E;font-size:10px;vertical-align:middle}
+/* media categories */
+.media-sec{margin-bottom:14px}
+.media-h{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.05em;font-size:12px;font-weight:700;
+  color:var(--rc);border-bottom:1px solid var(--line);padding-bottom:4px;margin-bottom:8px}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.media-grid.list{display:flex;flex-direction:column;gap:6px}
+.media-grid.list .media-cell{min-height:0;background:var(--bone);border:1px solid var(--line)}
+.media-contact{padding:10px 12px;font-family:var(--f-mono);font-size:13px;color:var(--ink)}
+#media-type{max-width:110px}
+
+</style>
+</head>
+<body>
+
+  <header class="hdr">
+    <div class="hdr-l">
+      <h1 id="title">CALAMITIES</h1>
+      <span class="loc" id="loc-label">Enchantment · Rosamond, CA</span>
+    </div>
+    <div class="pills" id="pills" aria-label="Regions"></div>
+  </header>
+
+  <div class="areas" id="areas" aria-label="Sub-areas"></div>
+  <div class="rnote" id="rnote"></div>
+  <div class="mobtabs">
+    <button id="tab-list">▤ List</button>
+    <button id="tab-map">◎ Map</button>
+  </div>
+
+  <div class="bar">
+    <input id="search" class="search" type="search" placeholder="Search locations…" aria-label="Search locations">
+    <span class="count" id="count"></span>
+    <label class="showlbl">Scene <select id="scene-select" class="select"></select></label>
+    <label class="showlbl">Filter <select id="filter-select" class="select"></select></label>
+    <button id="fit" class="ghost" title="Zoom to Enchantment">⌖ Enchantment</button>
+  </div>
+
+  <div class="wrap">
+    <aside class="list" id="list" aria-label="Locations"></aside>
+    <div id="map" aria-label="Map"></div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-bg" id="modal-bg"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="d-name">
+      <button class="x" id="x" aria-label="Close">×</button>
+      <div class="galrow">
+        <div class="galwrap">
+          <button class="garrow gprev" id="gprev" aria-label="Previous picture">‹</button>
+          <div class="gallery" id="gallery"></div>
+          <button class="garrow gnext" id="gnext" aria-label="Next picture">›</button>
+        </div>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+      <div class="info">
+        <h2 id="d-name"></h2>
+        <div class="addr" id="d-addr"></div>
+        <div class="dactions" id="d-actions"></div>
+        <div class="tabs2">
+          <button class="t2 on" id="tab-details">Details</button>
+          <button class="t2" id="tab-media">Media</button>
+        </div>
+        <div class="tabpane" id="pane-details">
+          <div class="dlinks" id="d-links"></div>
+          <div class="logistics" id="d-logistics"></div>
+        </div>
+        <div class="tabpane" id="pane-media" hidden>
+          <div class="media-add">
+            <select id="media-type" class="select"><option value="photo">Photo</option><option value="video">Video</option><option value="pdf">PDF</option><option value="link">Link</option><option value="contact">Contact</option></select>
+            <input id="media-url" type="text" placeholder="Paste a link, or type contact info…">
+            <button id="media-add-btn" class="ghost">Add</button>
+          </div>
+          <div class="media-list" id="media-list"></div>
+        </div>
+        <div class="nav"><button id="prev" class="ghost">‹ Prev</button><button id="next" class="ghost">Next ›</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview" id="preview"></div>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <div class="lb-bg" id="lb-bg"></div>
+    <button class="lb-close" id="lb-close" aria-label="Close">×</button>
+    <img id="lb-img" alt="">
+    <div class="lb-hint">scroll or click to zoom · space / esc / tap to close</div>
+  </div>
+
+  <footer class="foot" id="foot"></footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+/* ============================================================
+   CALAMITIES — LOCATION SCOUT · DATA FILE
+   ------------------------------------------------------------
+   PHOTOS come from GOOGLE automatically (the same photo slideshow
+   you see when previewing a place in Google Maps) — nothing to host.
+   Needs the key below + "Places API (New)" enabled and the key
+   restricted (HTTP referrers https://*.github.io/*).
+   You can still pin your OWN photos for featured spots:
+     photos: ["photos/name-1.jpg"]  (they show first)
+
+   Antelope Valley pins come from your KML (exact coords, your names),
+   grouped by town. Scene tags are AUTO for now — send the scene list
+   and I'll make them match your PDFs exactly.
+   ============================================================ */
+
+const CONFIG = {
+  title: "CALAMITIES",
+  subtitle: "Location Scout",
+  googleMapsKey: "",
+
+  scenes: [
+    { id:"slaughterhouse", name:"Monty's Slaughterhouse" }, { id:"annies-house", name:"Annie's House" },
+    { id:"main-street", name:"Main Street / Dead Town" }, { id:"church", name:"Church (Spirit First)" },
+    { id:"high-school", name:"High School" }, { id:"gas-station", name:"Gas Station (Jimbo's)" },
+    { id:"myrtles-ranch", name:"Grandma Myrtle's Ranch" }, { id:"motel", name:"Longhorn Inn Motel" },
+    { id:"green-acres", name:"Green Acres Diner" }, { id:"red-eye-ranch", name:"Red Eye Ranch / Grazeland" },
+    { id:"hospital", name:"Hospital" }, { id:"sheriff", name:"Sheriff's Station / Civic" },
+    { id:"hilton", name:"El Paso Hilton (ballroom)" }, { id:"bank", name:"First National Bank" },
+    { id:"texaco", name:"Texaco (night)" }, { id:"rodeo", name:"Rodeo Fairgrounds" },
+    { id:"track-home", name:"Track Home (massacre)" }, { id:"hideout", name:"Her's Hideout" },
+    { id:"wyden-home", name:"Wyden's New Home" }, { id:"diner-lot", name:"Diner Lot + DPS Car" },
+    { id:"vet-clinic", name:"Veterinary Clinic" }, { id:"press-church", name:"Church — Press Conference" },
+    { id:"flashback-apt", name:"Flashback Apartment" }, { id:"border-plate", name:"Border / Juarez (VFX)" },
+    { id:"desert-roads", name:"Desert Roads" }
+  ],
+
+  regions: [
+    {
+      id:"av", name:"Antelope Valley", color:"#8A2417",
+      note:"Basecamp / parking: Lancaster or Palmdale (not Acton).",
+      center:[34.66,-118.12], zoom:9, defaultArea:"rosamond",
+      anchorTowns:[
+        { name:"Lancaster", lat:34.6868, lng:-118.1542 },
+        { name:"Palmdale", lat:34.5794, lng:-118.1165 }
+      ],
+      peripheralTowns:[
+        { name:"Rosamond", lat:34.8642, lng:-118.1631, zoom:16, center:[34.86089, -118.166314], perimeter:[ [34.864308, -118.169063], [34.861148, -118.169031], [34.861192, -118.167153], [34.857123, -118.167087], [34.857141, -118.162216], [34.86443, -118.163332] ] },
+        { name:"Antelope Acres", lat:34.7647, lng:-118.2842 },
+        { name:"Quartz Hill", lat:34.6444, lng:-118.2176 },
+        { name:"Mojave", lat:35.0525, lng:-118.1740 },
+        { name:"Littlerock / Pearblossom", lat:34.5137, lng:-117.9472 },
+        { name:"Acton", lat:34.4703, lng:-118.1968 }
+      ]
+    },
+    {
+      id:"bakersfield", name:"Bakersfield", color:"#B0731A", note:"Rodeo = Kern County Fair (in Bakersfield).",
+      center:[35.35,-119.10], zoom:9,
+      anchorTowns:[{ name:"Bakersfield", lat:35.3733, lng:-119.0187 },{ name:"Oildale", lat:35.4283, lng:-119.0223 },{ name:"East Bakersfield (Old Town)", lat:35.3770, lng:-118.9860 }],
+      peripheralTowns:[{ name:"Taft / Maricopa", lat:35.1425, lng:-119.4568 },{ name:"Arvin / Lamont / Weedpatch", lat:35.2091, lng:-118.8283 },{ name:"McFarland (cattle salesyard)", lat:35.6788, lng:-119.2290 },{ name:"Buttonwillow / Lost Hills", lat:35.4003, lng:-119.4718 }]
+    },
+    {
+      id:"ie", name:"Inland Empire", color:"#2C6E8F", note:"Colton = hospital (Arrowhead).",
+      center:[34.02,-117.30], zoom:9,
+      anchorTowns:[{ name:"San Bernardino", lat:34.1083, lng:-117.2898 },{ name:"Riverside", lat:33.9806, lng:-117.3755 },{ name:"Colton (hospital)", lat:34.0739, lng:-117.3136 }],
+      peripheralTowns:[{ name:"Rialto", lat:34.1064, lng:-117.3703 },{ name:"Fontana", lat:34.0922, lng:-117.4350 },{ name:"Ontario", lat:34.0633, lng:-117.6509 },{ name:"Pomona", lat:34.0551, lng:-117.7500 },{ name:"Banning", lat:33.9256, lng:-116.8764 },{ name:"Beaumont", lat:33.9295, lng:-116.9770 }]
+    },
+    {
+      id:"highdesert", name:"High Desert", color:"#3E7D4E", note:"",
+      center:[34.66,-117.10], zoom:8,
+      anchorTowns:[{ name:"Victorville", lat:34.5362, lng:-117.2928 },{ name:"Apple Valley", lat:34.5008, lng:-117.1859 }],
+      peripheralTowns:[{ name:"Barstow", lat:34.8958, lng:-117.0173 },{ name:"Boron", lat:35.0000, lng:-117.6503 },{ name:"Lucerne Valley", lat:34.4436, lng:-116.9714 },{ name:"Adelanto", lat:34.5828, lng:-117.4092 },{ name:"Oro Grande", lat:34.6089, lng:-117.3389 },{ name:"Newberry Springs", lat:34.8281, lng:-116.6872 }]
+    },
+    {
+      id:"imperial", name:"Imperial Valley", color:"#7A4FA3", note:"Border towns on the Mexicali line.",
+      center:[32.83,-115.55], zoom:10,
+      anchorTowns:[{ name:"Brawley", lat:32.9787, lng:-115.5303 },{ name:"El Centro", lat:32.7920, lng:-115.5631 },{ name:"Calexico", lat:32.6789, lng:-115.4989 }],
+      peripheralTowns:[{ name:"Imperial", lat:32.8475, lng:-115.5694 },{ name:"Heber", lat:32.7314, lng:-115.5297 }]
+    }
+  ]
+};
+
+const OPTIONS = [
+  { region:"av", area:"rosamond", name:"2500 Sierra Hwy", town:"Rosamond", address:"2500 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.857306, lng:-118.162185 },
+  { region:"av", area:"rosamond", name:"2522 Sierra Hwy", town:"Rosamond", address:"2522 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.857968, lng:-118.16229 },
+  { region:"av", area:"rosamond", name:"2598 Sierra Hwy", town:"Rosamond", address:"2598 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.858828, lng:-118.162426 },
+  { region:"av", area:"rosamond", name:"2623 Sierra Hwy", town:"Rosamond", address:"2623 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859427, lng:-118.16252 },
+  { region:"av", area:"rosamond", name:"2700 Sierra Hwy", town:"Rosamond", address:"2700 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860196, lng:-118.16264 },
+  { region:"av", area:"rosamond", name:"1724 Center St", town:"Rosamond", address:"1724 Center St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860073, lng:-118.163069 },
+  { region:"av", area:"rosamond", name:"1700 Center St", town:"Rosamond", address:"1700 Center St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860105, lng:-118.162779 },
+  { region:"av", area:"rosamond", name:"2784 Sierra Hwy", town:"Rosamond", address:"2784 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.86103, lng:-118.162768 },
+  { region:"av", area:"rosamond", name:"2801 Sierra Hwy", town:"Rosamond", address:"2801 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861488, lng:-118.16284 },
+  { region:"av", area:"rosamond", name:"1701 Gobi Ave", town:"Rosamond", address:"1701 Gobi Ave, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861413, lng:-118.162982 },
+  { region:"av", area:"rosamond", name:"1727 Gobi Ave", town:"Rosamond", address:"1727 Gobi Ave, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861397, lng:-118.163113 },
+  { region:"av", area:"rosamond", name:"2855 Sierra Hwy", town:"Rosamond", address:"2855 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862311, lng:-118.162977 },
+  { region:"av", area:"rosamond", name:"2898 Sierra Hwy", town:"Rosamond", address:"2898 Sierra Hwy, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862675, lng:-118.163031 },
+  { region:"av", area:"rosamond", name:"1616 W Rosamond Blvd", town:"Rosamond", address:"1616 W Rosamond Blvd, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864487, lng:-118.161552 },
+  { region:"av", area:"rosamond", name:"2957 Diamond St", town:"Rosamond", address:"2957 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864097, lng:-118.164637 },
+  { region:"av", area:"rosamond", name:"2072 W Rosamond Blvd", town:"Rosamond", address:"2072 W Rosamond Blvd, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864365, lng:-118.167701 },
+  { region:"av", area:"rosamond", name:"2999 B St", town:"Rosamond", address:"2999 B St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864186, lng:-118.169046 },
+  { region:"av", area:"rosamond", name:"2133 W Rosamond Blvd", town:"Rosamond", address:"2133 W Rosamond Blvd, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864341, lng:-118.169073 },
+  { region:"av", area:"rosamond", name:"2787 20th St W", town:"Rosamond", address:"2787 20th St W, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861059, lng:-118.167096 },
+  { region:"av", area:"rosamond", name:"2898 20th St W", town:"Rosamond", address:"2898 20th St W, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860652, lng:-118.167094 },
+  { region:"av", area:"rosamond", name:"2799 Dixie St", town:"Rosamond", address:"2799 Dixie St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860855, lng:-118.166836 },
+  { region:"av", area:"rosamond", name:"2638 Diamond St", town:"Rosamond", address:"2638 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859195, lng:-118.163829 },
+  { region:"av", area:"rosamond", name:"2641 Diamond St", town:"Rosamond", address:"2641 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859371, lng:-118.163857 },
+  { region:"av", area:"rosamond", name:"2698 Diamond St", town:"Rosamond", address:"2698 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859976, lng:-118.163945 },
+  { region:"av", area:"rosamond", name:"2700 Diamond St", town:"Rosamond", address:"2700 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860155, lng:-118.163973 },
+  { region:"av", area:"rosamond", name:"2743 Diamond St", town:"Rosamond", address:"2743 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860689, lng:-118.164062 },
+  { region:"av", area:"rosamond", name:"2800 Diamond St", town:"Rosamond", address:"2800 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861657, lng:-118.164198 },
+  { region:"av", area:"rosamond", name:"1799 Locust St", town:"Rosamond", address:"1799 Locust St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862646, lng:-118.164304 },
+  { region:"av", area:"rosamond", name:"Dixie St", town:"Rosamond", address:"Dixie St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862153, lng:-118.167014 },
+  { region:"av", area:"rosamond", name:"2842 Dixie St", town:"Rosamond", address:"2842 Dixie St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861792, lng:-118.166961 },
+  { region:"av", area:"rosamond", name:"2809 Dixie St", town:"Rosamond", address:"2809 Dixie St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.86112, lng:-118.166861 },
+  { region:"av", area:"rosamond", name:"1851 Gobi Ave", town:"Rosamond", address:"1851 Gobi Ave, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861242, lng:-118.16456 },
+  { region:"av", area:"rosamond", name:"1799 Gobi Ave", town:"Rosamond", address:"1799 Gobi Ave, Rosamond, California",
+    status:"idea", scenes:[], lat:34.86131, lng:-118.163979 },
+  { region:"av", area:"rosamond", name:"1789 Gobi Ave", town:"Rosamond", address:"1789 Gobi Ave, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861336, lng:-118.163751 },
+  { region:"av", area:"rosamond", name:"1726 Center St", town:"Rosamond", address:"1726 Center St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860042, lng:-118.163393 },
+  { region:"av", area:"rosamond", name:"1726 Center St", town:"Rosamond", address:"1726 Center St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.86002, lng:-118.163613 },
+  { region:"av", area:"rosamond", name:"Amt Market", town:"Rosamond", address:"Amt Market, Rosamond, California",
+    status:"idea", scenes:["gas-station"], lat:34.859808, lng:-118.163042 },
+  { region:"av", area:"rosamond", name:"Las Margaritas Cocina & Cantina", town:"Rosamond", address:"Las Margaritas Cocina & Cantina, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860432, lng:-118.163032 },
+  { region:"av", area:"rosamond", name:"Mavericks Sports Bar and Grill", town:"Rosamond", address:"Mavericks Sports Bar and Grill, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861183, lng:-118.163132 },
+  { region:"av", area:"rosamond", name:"Pat's Liquor Store", town:"Rosamond", address:"Pat's Liquor Store, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861306, lng:-118.163011 },
+  { region:"av", area:"rosamond", name:"K S Grocery", town:"Rosamond", address:"K S Grocery, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861801, lng:-118.16312 },
+  { region:"av", area:"rosamond", name:"Ricky's Highway Cafe", town:"Rosamond", address:"Ricky's Highway Cafe, Rosamond, California",
+    status:"idea", scenes:["diner-lot", "green-acres"], lat:34.862107, lng:-118.163238 },
+  { region:"av", area:"rosamond", name:"Plum tree collective", town:"Rosamond", address:"Plum tree collective, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862528, lng:-118.163184 },
+  { region:"av", area:"rosamond", name:"MRP Auto & Transmission repair", town:"Rosamond", address:"MRP Auto & Transmission repair, Rosamond, California",
+    status:"idea", scenes:[], lat:34.863555, lng:-118.163398 },
+  { region:"av", area:"rosamond", name:"Speed knocks boxing", town:"Rosamond", address:"Speed knocks boxing, Rosamond, California",
+    status:"idea", scenes:[], lat:34.863759, lng:-118.163535 },
+  { region:"av", area:"rosamond", name:"Kieffe & Sons Ford Used Cars", town:"Rosamond", address:"Kieffe & Sons Ford Used Cars, Rosamond, California",
+    status:"idea", scenes:[], lat:34.863764, lng:-118.16343 },
+  { region:"av", area:"rosamond", name:"California Real Estate", town:"Rosamond", address:"California Real Estate, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864144, lng:-118.164403 },
+  { region:"av", area:"rosamond", name:"Karl's Hardware & RENTAL", town:"Rosamond", address:"Karl's Hardware & RENTAL, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860245, lng:-118.163505 },
+  { region:"av", area:"rosamond", name:"The Tire Store - Rosamond", town:"Rosamond", address:"The Tire Store - Rosamond, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864125, lng:-118.164966 },
+  { region:"av", area:"rosamond", name:"Reaper Restorations", town:"Rosamond", address:"Reaper Restorations, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864154, lng:-118.165387 },
+  { region:"av", area:"rosamond", name:"Rosamond Construction Office", town:"Rosamond", address:"Rosamond Construction Office, Rosamond, California",
+    status:"idea", scenes:[], lat:34.864182, lng:-118.165728 },
+  { region:"av", area:"rosamond", name:"Patty's Cafe", town:"Rosamond", address:"Patty's Cafe, Rosamond, California",
+    status:"idea", scenes:["green-acres"], lat:34.864157, lng:-118.166401 },
+  { region:"av", area:"rosamond", name:"United States Postal Service", town:"Rosamond", address:"United States Postal Service, Rosamond, California",
+    status:"idea", scenes:[], lat:34.863787, lng:-118.166754 },
+  { region:"av", area:"rosamond", name:"Devonshire Inn Motel", town:"Rosamond", address:"Devonshire Inn Motel, Rosamond, California",
+    status:"idea", scenes:["motel"], lat:34.863838, lng:-118.168144 },
+  { region:"av", area:"rosamond", name:"Fosters Freeze", town:"Rosamond", address:"Fosters Freeze, Rosamond, California",
+    status:"idea", scenes:["diner-lot"], lat:34.863924, lng:-118.168646 },
+  { region:"av", area:"rosamond", name:"Bryan Manor Apartments", town:"Rosamond", address:"Bryan Manor Apartments, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862887, lng:-118.168648 },
+  { region:"av", area:"rosamond", name:"The Church On B Street", town:"Rosamond", address:"The Church On B Street, Rosamond, California",
+    status:"idea", scenes:["press-church"], lat:34.862026, lng:-118.168661 },
+  { region:"av", area:"rosamond", name:"2805 B St", town:"Rosamond", address:"2805 B St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.861322, lng:-118.169403 },
+  { region:"av", area:"rosamond", name:"2057 Gobi Ave", town:"Rosamond", address:"2057 Gobi Ave, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.861372, lng:-118.168396 },
+  { region:"av", area:"rosamond", name:"First Baptist Church-Rosamond", town:"Rosamond", address:"First Baptist Church-Rosamond, Rosamond, California",
+    status:"idea", scenes:["press-church"], lat:34.860813, lng:-118.167443 },
+  { region:"av", area:"rosamond", name:"El Chulo Burgers", town:"Rosamond", address:"El Chulo Burgers, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862636, lng:-118.167374 },
+  { region:"av", area:"rosamond", name:"Praise Inn", town:"Rosamond", address:"Praise Inn, Rosamond, California",
+    status:"idea", scenes:["press-church"], lat:34.860077, lng:-118.166894 },
+  { region:"av", area:"rosamond", name:"Hummell Community Center", town:"Rosamond", address:"Hummell Community Center, Rosamond, California",
+    status:"idea", scenes:["sheriff"], lat:34.857503, lng:-118.166712 },
+  { region:"av", area:"rosamond", name:"Carl's Motel", town:"Rosamond", address:"Carl's Motel, Rosamond, California",
+    status:"idea", scenes:["motel"], lat:34.857923, lng:-118.162799 },
+  { region:"av", area:"rosamond", name:"Dollar General", town:"Rosamond", address:"Dollar General, Rosamond, California",
+    status:"idea", scenes:[], lat:34.856751, lng:-118.162569 },
+  { region:"av", area:"rosamond", name:"Joshua Motel", town:"Rosamond", address:"Joshua Motel, Rosamond, California",
+    status:"idea", scenes:["motel"], lat:34.858221, lng:-118.162911 },
+  { region:"av", area:"rosamond", name:"Rosamond Auto Sales", town:"Rosamond", address:"Rosamond Auto Sales, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859028, lng:-118.162797 },
+  { region:"av", area:"rosamond", name:"Mr Donut & More", town:"Rosamond", address:"Mr Donut & More, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859552, lng:-118.16291 },
+  { region:"av", area:"rosamond", name:"Desert Search and Rescue", town:"Rosamond", address:"Desert Search and Rescue, Rosamond, California",
+    status:"idea", scenes:[], lat:34.863817, lng:-118.165682 },
+  { region:"av", area:"rosamond", name:"2700 Desert St", town:"Rosamond", address:"2700 Desert St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.860082, lng:-118.165059 },
+  { region:"av", area:"rosamond", name:"Family Faith Center Church of God", town:"Rosamond", address:"Family Faith Center Church of God, Rosamond, California",
+    status:"idea", scenes:["press-church"], lat:34.858388, lng:-118.164804 },
+  { region:"av", area:"rosamond", name:"Hall Ambulance Rosamond Station", town:"Rosamond", address:"Hall Ambulance Rosamond Station, Rosamond, California",
+    status:"idea", scenes:[], lat:34.863858, lng:-118.164133 },
+  { region:"av", area:"rosamond", name:"2970 Diamond St", town:"Rosamond", address:"2970 Diamond St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.863858, lng:-118.164133 },
+  { region:"av", area:"rosamond", name:"deluxe auto interiors", town:"Rosamond", address:"deluxe auto interiors, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862863, lng:-118.164209 },
+  { region:"av", area:"rosamond", name:"Adobe Church, 1933", town:"Rosamond", address:"Adobe Church, 1933, Rosamond, California",
+    status:"idea", scenes:["main-street", "press-church"], lat:34.862482, lng:-118.164038 },
+  { region:"av", area:"rosamond", name:"\"Plane Building\" - 2873 Diamond St", town:"Rosamond", address:"\"Plane Building\" - 2873 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862423, lng:-118.164586 },
+  { region:"av", area:"rosamond", name:"Rosamond Chamber of Commerce", town:"Rosamond", address:"Rosamond Chamber of Commerce, Rosamond, California",
+    status:"idea", scenes:[], lat:34.862245, lng:-118.164551 },
+  { region:"av", area:"rosamond", name:"Rosamond self service Car Wash", town:"Rosamond", address:"Rosamond self service Car Wash, Rosamond, California",
+    status:"idea", scenes:[], lat:34.86179, lng:-118.16449 },
+  { region:"av", area:"rosamond", name:"Prime Auto Parts", town:"Rosamond", address:"Prime Auto Parts, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861009, lng:-118.164434 },
+  { region:"av", area:"rosamond", name:"\"Bucketloader Lot\" - 2760 Diamond St", town:"Rosamond", address:"\"Bucketloader Lot\" - 2760 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861018, lng:-118.163859 },
+  { region:"av", area:"rosamond", name:"E&N General Discount Store", town:"Rosamond", address:"E&N General Discount Store, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860704, lng:-118.164431 },
+  { region:"av", area:"rosamond", name:"Diamond Hair Designs", town:"Rosamond", address:"Diamond Hair Designs, Rosamond, California",
+    status:"idea", scenes:[], lat:34.860784, lng:-118.16391 },
+  { region:"av", area:"rosamond", name:"\"Construction Lot\" - 2704 Diamond St", town:"Rosamond", address:"\"Construction Lot\" - 2704 Diamond St, Rosamond, California",
+    status:"idea", scenes:[], lat:34.86039, lng:-118.163797 },
+  { region:"av", area:"rosamond", name:"Rosamond liquor market", town:"Rosamond", address:"Rosamond liquor market, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859798, lng:-118.164207 },
+  { region:"av", area:"rosamond", name:"Aqua Azul", town:"Rosamond", address:"Aqua Azul, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859766, lng:-118.163627 },
+  { region:"av", area:"rosamond", name:"Rosamond Cleaners", town:"Rosamond", address:"Rosamond Cleaners, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859518, lng:-118.163574 },
+  { region:"av", area:"rosamond", name:"Rosamond Community Center", town:"Rosamond", address:"Rosamond Community Center, Rosamond, California",
+    status:"idea", scenes:[], lat:34.859432, lng:-118.164064 },
+  { region:"av", area:"rosamond", name:"J's Hideaway Restaurant & Bar", town:"Rosamond", address:"J's Hideaway Restaurant & Bar, Rosamond, California",
+    status:"idea", scenes:["diner-lot"], lat:34.85928, lng:-118.164062 },
+  { region:"av", area:"rosamond", name:"The Green Mile collective", town:"Rosamond", address:"The Green Mile collective, Rosamond, California",
+    status:"idea", scenes:[], lat:34.858943, lng:-118.164024 },
+  { region:"av", area:"rosamond", name:"1963 Locust St", town:"Rosamond", address:"1963 Locust St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.862526, lng:-118.166883 },
+  { region:"av", area:"rosamond", name:"1923 Locust St", town:"Rosamond", address:"1923 Locust St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.862648, lng:-118.166246 },
+  { region:"av", area:"rosamond", name:"1938 Poplar St", town:"Rosamond", address:"1938 Poplar St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.860744, lng:-118.16618 },
+  { region:"av", area:"rosamond", name:"\"Revival Center Lot\" - 1732 Gobi Ave", town:"Rosamond", address:"\"Revival Center Lot\" - 1732 Gobi Ave, Rosamond, California",
+    status:"idea", scenes:[], lat:34.861155, lng:-118.163545 },
+  { region:"av", area:"rosamond", name:"HACHIBAN RAMEN SUSHI BAR & GRILL", town:"Rosamond", address:"HACHIBAN RAMEN SUSHI BAR & GRILL, Rosamond, California",
+    status:"idea", scenes:["diner-lot"], lat:34.861234, lng:-118.163238 },
+  { region:"av", area:"rosamond", name:"1857 Center St", town:"Rosamond", address:"1857 Center St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.860108, lng:-118.165069 },
+  { region:"av", area:"rosamond", name:"1954 Elm St", town:"Rosamond", address:"1954 Elm St, Rosamond, CA",
+    status:"idea", scenes:[], lat:34.858256, lng:-118.166086 },
+  { region:"av", area:"rosamond", name:"Coach's Sports Bar & Grill (REMODELED)", town:"Rosamond", address:"Coach's Sports Bar & Grill (REMODELED), Rosamond, California",
+    status:"idea", scenes:["diner-lot"], lat:34.864056, lng:-118.210141 },
+  { region:"av", area:"lancaster", name:"The Town House Motel", town:"Lancaster", address:"The Town House Motel, Lancaster, California",
+    status:"idea", scenes:["motel"], lat:34.684979, lng:-118.134829 },
+  { region:"av", area:"lancaster", name:"Fuel and Drive Thru Dairy", town:"Lancaster", address:"Fuel and Drive Thru Dairy, Lancaster, California",
+    status:"idea", scenes:["gas-station", "texaco"], lat:34.689908, lng:-118.130698 },
+  { region:"av", area:"lancaster", name:"White House Restaurant", town:"Lancaster", address:"White House Restaurant, Lancaster, California",
+    status:"idea", scenes:[], lat:34.690429, lng:-118.130668 },
+  { region:"av", area:"lancaster", name:"The BLVD Lancaster", town:"Lancaster", address:"The BLVD Lancaster, Lancaster, California",
+    status:"idea", scenes:["bank", "main-street"], lat:34.697531, lng:-118.145123 },
+  { region:"av", area:"lancaster", name:"North Valley Veterinary Center And Boarding", town:"Lancaster", address:"North Valley Veterinary Center And Boarding, Lancaster, California",
+    status:"idea", scenes:["vet-clinic"], lat:34.675599, lng:-118.133482 },
+  { region:"av", area:"lancaster", name:"Sears Veterinary Hospital", town:"Lancaster", address:"Sears Veterinary Hospital, Lancaster, California",
+    status:"idea", scenes:["vet-clinic"], lat:34.704286, lng:-118.140264 },
+  { region:"av", area:"lancaster", name:"Neenach Cafe & Market", town:"Lancaster", address:"Neenach Cafe & Market, Lancaster, California",
+    status:"idea", scenes:["gas-station", "green-acres"], lat:34.774924, lng:-118.53612 },
+  { region:"av", area:"lancaster", name:"California Highway Patrol", town:"Lancaster", address:"California Highway Patrol, Lancaster, California",
+    status:"idea", scenes:["sheriff"], lat:34.704536, lng:-118.167537 },
+  { region:"av", area:"lancaster", name:"Sierra Gas & Scales", town:"Lancaster", address:"Sierra Gas & Scales, Lancaster, California",
+    status:"idea", scenes:["gas-station", "texaco"], lat:34.680005, lng:-118.134032 },
+  { region:"av", area:"lancaster", name:"AV Fair & Event Center", town:"Lancaster", address:"AV Fair & Event Center, Lancaster, California",
+    status:"idea", scenes:["rodeo"], lat:34.722076, lng:-118.175896 },
+  { region:"av", area:"quartz-hill", name:"California Bank & Trust", town:"Quartz Hill", address:"California Bank & Trust, Quartz Hill, California",
+    status:"idea", scenes:["bank"], lat:34.646382, lng:-118.218186 },
+  { region:"av", area:"mojave", name:"OASIS TRAVEL STOP", town:"Mojave", address:"OASIS TRAVEL STOP, Mojave, California",
+    status:"idea", scenes:["gas-station", "texaco"], lat:35.050067, lng:-118.172516 },
+  { region:"av", area:"mojave", name:"El Grullense Mexican food", town:"Mojave", address:"El Grullense Mexican food, Mojave, California",
+    status:"idea", scenes:["green-acres"], lat:35.051691, lng:-118.173228 },
+  { region:"av", area:"mojave", name:"Gardner Realty & Video", town:"Mojave", address:"Gardner Realty & Video, Mojave, California",
+    status:"idea", scenes:[], lat:35.052243, lng:-118.173341 },
+  { region:"av", area:"mojave", name:"Creo's Wireless & Repairs", town:"Mojave", address:"Creo's Wireless & Repairs, Mojave, California",
+    status:"idea", scenes:["main-street"], lat:35.052416, lng:-118.172504 },
+  { region:"av", area:"mojave", name:"2259 Inyo St", town:"Mojave", address:"2259 Inyo St, Mojave, CA",
+    status:"idea", scenes:[], lat:35.052897, lng:-118.172043 },
+  { region:"av", area:"mojave", name:"2000 Inyo St", town:"Mojave", address:"2000 Inyo St, Mojave, CA",
+    status:"idea", scenes:[], lat:35.053385, lng:-118.167554 },
+  { region:"av", area:"mojave", name:"Capsed Limited", town:"Mojave", address:"Capsed Limited, Mojave, California",
+    status:"idea", scenes:["slaughterhouse"], lat:35.054241, lng:-118.163953 },
+  { region:"av", area:"mojave", name:"Archer Travel Center", town:"Mojave", address:"Archer Travel Center, Mojave, California",
+    status:"idea", scenes:["gas-station", "texaco"], lat:35.063278, lng:-118.176635 },
+  { region:"av", area:"mojave", name:"777 Liquor", town:"Mojave", address:"777 Liquor, Mojave, CA",
+    status:"idea", scenes:[], lat:35.047768, lng:-118.170347 },
+  { region:"av", area:"mojave", name:"CAPK WIC", town:"Mojave", address:"CAPK WIC, Mojave, California",
+    status:"idea", scenes:["sheriff"], lat:35.048763, lng:-118.167036 },
+  { region:"av", area:"mojave", name:"Mojave Truck Stop", town:"Mojave", address:"Mojave Truck Stop, Mojave, California",
+    status:"idea", scenes:["texaco"], lat:35.047337, lng:-118.167519 },
+  { region:"av", area:"palmdale", name:"Palmdale School District", town:"Palmdale", address:"Palmdale School District, Palmdale, California",
+    status:"idea", scenes:["sheriff"], lat:34.593416, lng:-118.112363 }
+];
+
+</script>
+  <script>
+/* CALAMITIES — Enchantment Scout · app (edit locations in data.js) */
+(function () {
+  "use strict";
+
+  const STATUSES = [
+    { id: "idea", name: "Idea" }, { id: "scouting", name: "Scouting" },
+    { id: "scouted", name: "Scouted" }, { id: "cleared", name: "Cleared \u2713" },
+    { id: "rejected", name: "Rejected" }
+  ];
+  const LOGI = [
+    ["contact", "Contact"], ["permit", "Permit"], ["access", "Access"],
+    ["bestTime", "Best time"], ["parking", "Parking"], ["power", "Power"],
+    ["cost", "Cost"], ["info", "Notes"]
+  ];
+
+  const state = { region: "av", area: null, scene: "all", filter: "all", q: "", allRegions: false,
+    list: [], idx: 0, slides: [], slide: 0, current: null };
+  let map, baseGroup, townGroup, optGroup;
+  const pinByName = {};
+  let hoverTimer = null;
+
+  /* ---- tiny storage (localStorage w/ in-memory fallback) ---- */
+  const mem = {};
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return k in mem ? mem[k] : d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
+  };
+  let FAVS = store.get("cal_favs", {});
+  let STAT = store.get("cal_status", {});
+  let MEDIA = store.get("cal_media", {});
+  Object.keys(MEDIA).forEach(k => { MEDIA[k] = (MEDIA[k] || []).map(m => typeof m === "string" ? { type: "link", value: m } : m); });
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const elc = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+  const esc = (s) => (s == null ? "" : String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])));
+  const slug = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const regionById = (id) => CONFIG.regions.find(r => r.id === id);
+  const sceneById = (id) => (CONFIG.scenes || []).find(s => s.id === id);
+  function townsOf(r) {
+    return (r.anchorTowns || []).map(t => Object.assign({ type: "anchor", slug: slug(t.name) }, t))
+      .concat((r.peripheralTowns || []).map(t => Object.assign({ type: "peripheral", slug: slug(t.name) }, t)));
+  }
+  const selectedTown = () => townsOf(regionById(state.region)).find(t => t.slug === state.area) || null;
+
+  const KEY = (CONFIG.googleMapsKey || "").trim();
+  const idOf = (o) => o.region + "|" + o.name;
+  const isFav = (o) => !!FAVS[idOf(o)];
+  const getStatus = (o) => STAT[idOf(o)] || o.status || "idea";
+  const statusName = (id) => (STATUSES.find(s => s.id === id) || { name: id }).name;
+  function toggleFav(o) { const k = idOf(o); if (FAVS[k]) delete FAVS[k]; else FAVS[k] = 1; store.set("cal_favs", FAVS); }
+  function setStatus(o, s) { STAT[idOf(o)] = s; store.set("cal_status", STAT); }
+
+  const qOf = (o) => encodeURIComponent(o.address || (o.lat != null ? o.lat + "," + o.lng : (o.name + " " + (o.town || ""))));
+  const mapsLink = (o) => `https://www.google.com/maps/search/?api=1&query=${qOf(o)}`;
+  const imgLink = (o) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent((o.name || "") + " " + (o.town || "") + " CA")}`;
+  const svLink = (o) => (o.lat != null ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${o.lat},${o.lng}` : mapsLink(o));
+
+  /* ---- keyless aerial imagery (Google satellite tiles → Esri fallback) ---- */
+  const _tx = (lng, z) => Math.floor((lng + 180) / 360 * Math.pow(2, z));
+  const _ty = (lat, z) => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z)); };
+  const gsat = (o, z) => `https://mt1.google.com/vt/lyrs=s&x=${_tx(o.lng, z)}&y=${_ty(o.lat, z)}&z=${z}`;
+  const esat = (o, z) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${_ty(o.lat, z)}/${_tx(o.lng, z)}`;
+  function aerialSlides(o) {
+    if (o.lat == null) return [];
+    const names = ["Aerial · close", "Aerial · block", "Aerial · area"];
+    return [19, 18, 17].map((z, i) => ({ type: "img", src: gsat(o, z), alt: esat(o, z), label: names[i] }));
+  }
+  const gmapEmbed = (o) => `https://maps.google.com/maps?q=${qOf(o)}&z=17&output=embed`;
+  function loadPhotos(o) {
+    let slides = aerialSlides(o);
+    slides.push({ type: "embed", src: gmapEmbed(o), label: "Google map" });
+    state.slides = slides; renderThumbs(); showSlide(0);
+  }
+  const photosOf = (o) => (o.photos && o.photos.length ? o.photos : (o.photo ? [o.photo] : []));
+
+  function matchQ(o) {
+    if (!state.q) return true;
+    const sc = (o.scenes || []).map(id => (sceneById(id) || {}).name || id).join(" ");
+    const hay = (o.name + " " + (o.town || "") + " " + (o.address || "") + " " + (o.notes || "") + " " + sc + " " + o.region).toLowerCase();
+    return hay.includes(state.q.toLowerCase());
+  }
+  function passFilter(o) {
+    const f = state.filter;
+    if (f === "all") return true;
+    if (f === "fav") return isFav(o);
+    if (f === "cleared") return getStatus(o) === "cleared";
+    if (f === "uncleared") return getStatus(o) !== "cleared";
+    return getStatus(o) === f;
+  }
+  function filtered() {
+    return OPTIONS.filter(o => state.allRegions || o.region === state.region)
+      .filter(o => state.allRegions || !state.area || o.area === state.area)
+      .filter(o => state.scene === "all" || (o.scenes && o.scenes.indexOf(state.scene) !== -1))
+      .filter(passFilter).filter(matchQ)
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }
+  const inArea = (o) => !state.area || o.area === state.area;
+  const sceneCount = (id) => OPTIONS.filter(o => o.region === state.region && inArea(o) && o.scenes && o.scenes.indexOf(id) !== -1).length;
+  const areaCount = (sl) => OPTIONS.filter(o => o.region === state.region && o.area === sl).length;
+
+  /* ---- pills / areas / dropdowns ---- */
+  function buildPills() {
+    const box = $("#pills"); box.innerHTML = "";
+    CONFIG.regions.forEach(r => {
+      const n = OPTIONS.filter(o => o.region === r.id).length;
+      const b = elc("button", "pill", `${esc(r.name)}<span class="c">${n}</span>`);
+      b.setAttribute("aria-selected", !state.allRegions && r.id === state.region);
+      b.addEventListener("click", () => switchRegion(r.id));
+      box.appendChild(b);
+    });
+    const allb = elc("button", "pill allregions", "All regions");
+    allb.setAttribute("aria-selected", state.allRegions);
+    allb.addEventListener("click", () => { state.allRegions = !state.allRegions; if (state.allRegions) state.area = null; refresh(); if (state.allRegions) fitPins(); else fitArea(); });
+    box.appendChild(allb);
+  }
+  function buildAreas() {
+    const box = $("#areas"); box.innerHTML = "";
+    if (state.allRegions) { box.style.display = "none"; return; }
+    box.style.display = "flex";
+    const r = regionById(state.region);
+    const all = elc("button", "apill all", `All ${esc(r.name)}`);
+    all.setAttribute("aria-selected", !state.area);
+    all.addEventListener("click", () => { state.area = null; refresh(); fitArea(); });
+    box.appendChild(all);
+    const grp = (label, towns) => {
+      if (!towns.length) return;
+      box.appendChild(elc("span", "crumb", label));
+      towns.forEach(t => {
+        const tt = Object.assign({ slug: slug(t.name) }, t);
+        const n = areaCount(tt.slug);
+        const b = elc("button", "apill" + (label[0] === "A" ? " anchor" : ""),
+          `${esc(t.name)}${n ? `<span class="c">${n}</span>` : ""}`);
+        b.setAttribute("aria-selected", tt.slug === state.area);
+        b.addEventListener("click", () => { state.area = tt.slug; refresh(); fitArea(); });
+        box.appendChild(b);
+      });
+    };
+    grp("Anchors:", r.anchorTowns || []);
+    grp("Peripherals:", r.peripheralTowns || []);
+  }
+  function buildSceneSelect() {
+    const sel = $("#scene-select"); sel.innerHTML = "";
+    const total = OPTIONS.filter(o => (state.allRegions || o.region === state.region) && (state.allRegions || inArea(o))).length;
+    sel.appendChild(new Option(`All locations (${total})`, "all"));
+    const rows = (CONFIG.scenes || []).map(sc => ({ sc, n: sceneCount(sc.id) }));
+    rows.sort((a, b) => (b.n > 0) - (a.n > 0));
+    rows.forEach(({ sc, n }) => sel.appendChild(new Option(`${sc.name}  (${n})`, sc.id)));
+    sel.value = state.scene;
+  }
+  function buildFilterSelect() {
+    const sel = $("#filter-select"); if (!sel) return; sel.innerHTML = "";
+    sel.appendChild(new Option("All", "all"));
+    sel.appendChild(new Option("\u2605 Favorites", "fav"));
+    sel.appendChild(new Option("Cleared \u2713", "cleared"));
+    sel.appendChild(new Option("Not cleared", "uncleared"));
+    STATUSES.filter(s => s.id !== "cleared").forEach(s => sel.appendChild(new Option(s.name, s.id)));
+    sel.value = state.filter;
+  }
+
+  /* ---- list ---- */
+  function buildList() {
+    state.list = filtered();
+    const box = $("#list"); box.innerHTML = "";
+    $("#count").textContent = `${state.list.length} location${state.list.length === 1 ? "" : "s"}`;
+    if (!state.list.length) { box.appendChild(elc("div", "empty", "No matches.<br>Try All regions, or clear the filter.")); return; }
+    state.list.forEach((o) => {
+      const st = getStatus(o);
+      const tagged = o.scenes && o.scenes.length;
+      const row = elc("button", "row st-" + st + (tagged ? " tagged" : ""),
+        `<span class="rstar${isFav(o) ? " on" : ""}" data-fav="1">${isFav(o) ? "\u2605" : "\u2606"}</span>` +
+        `<span class="rmid"><span class="rn">${esc(o.name)}</span>` +
+        `<span class="rs">${esc(o.address || o.town || "")}${state.allRegions ? " \u00B7 " + esc(regionById(o.region).name) : ""}</span></span>` +
+        `<span class="rdot" title="${esc(statusName(st))}"></span>`);
+      row.dataset.name = o.name; row.dataset.region = o.region;
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".rstar")) { toggleFav(o); buildList(); return; }
+        openModal(o);
+      });
+      row.addEventListener("mouseenter", () => { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => previewShow(o), 120); });
+      row.addEventListener("mouseleave", () => { clearTimeout(hoverTimer); hoverTimer = setTimeout(previewHide, 200); });
+      box.appendChild(row);
+    });
+  }
+  function markSelected(o) { $$(".row").forEach(r => r.classList.toggle("sel", r.dataset.name === (o && o.name) && r.dataset.region === (o && o.region))); }
+
+  /* ---- hover preview ---- */
+  function previewShow(o) {
+    const box = $("#preview");
+    let imgs = photosOf(o).slice(0, 3).map(p => `<img src="${esc(p)}" loading="lazy" alt="">`);
+    if (o.lat != null) imgs = imgs.concat(aerialSlides(o).slice(0, Math.max(1, 3 - imgs.length)).map(s => `<img src="${s.src}" loading="lazy" alt="">`));
+    box.innerHTML = `<div class="pv-name">${esc(o.name)}</div>` +
+      `<div class="pv-sub">${esc(o.address || o.town || "")}</div>` +
+      `<div class="pv-imgs">${imgs.length ? imgs.join("") : '<div class="pv-none">No photo yet</div>'}</div>` +
+      `<div class="pv-hint">click for full size</div>`;
+    box.style.display = "block";
+  }
+  function previewHide() { $("#preview").style.display = "none"; }
+
+  /* ---- map ---- */
+  function initMap() {
+    const t = selectedTown(); const r = regionById(state.region);
+    const start = t ? { center: t.center || [t.lat, t.lng], zoom: t.zoom || 14 } : r;
+    map = L.map("map", { zoomControl: true, scrollWheelZoom: true }).setView(start.center, start.zoom);
+    const road = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      { attribution: "&copy; OpenStreetMap &copy; CARTO", maxZoom: 19, subdomains: "abcd" });
+    const satLayer = L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+      { attribution: "Imagery &copy; Google", maxZoom: 20, subdomains: ["mt0", "mt1", "mt2", "mt3"] });
+    road.addTo(map);
+    L.control.layers({ "Map": road, "Satellite": satLayer }, null, { position: "topright" }).addTo(map);
+    baseGroup = L.layerGroup().addTo(map);
+    townGroup = L.layerGroup().addTo(map);
+    optGroup = L.layerGroup().addTo(map);
+  }
+  function townMarker(t, big) {
+    if (t.lat == null) return;
+    townGroup.addLayer(L.circleMarker([t.lat, t.lng], {
+      radius: big ? 8 : (t.type === "anchor" ? 7 : 5), color: "#fff", weight: 1.4,
+      fillColor: regionById(state.region).color, fillOpacity: t.type === "anchor" || big ? .9 : .55
+    }).bindTooltip(t.name, { permanent: true, direction: "right", className: "town-tip", offset: [8, 0] }));
+  }
+  function drawMap() {
+    const r = regionById(state.region); const t = selectedTown();
+    baseGroup.clearLayers(); townGroup.clearLayers(); optGroup.clearLayers();
+    for (const k in pinByName) delete pinByName[k];
+    if (!state.allRegions) {
+      if (t && t.perimeter) baseGroup.addLayer(L.polygon(t.perimeter, { color: r.color, weight: 2.5, dashArray: "6 6", fillColor: r.color, fillOpacity: .05 }));
+      if (!state.area) townsOf(r).forEach(tw => townMarker(tw));
+      else if (t) townMarker(t, true);
+    }
+    filtered().forEach(o => {
+      if (o.lat == null) return;
+      const tagged = o.scenes && o.scenes.length;
+      const col = tagged ? "#C99A2E" : regionById(o.region).color;
+      const d = tagged ? 15 : 12;
+      const icon = L.divIcon({ className: "", iconSize: [d + 4, d + 4], iconAnchor: [(d + 4) / 2, (d + 4) / 2],
+        html: `<div style="width:${d}px;height:${d}px;border-radius:50%;background:${col};border:2px solid ${isFav(o) ? "#F2C14E" : "#fff"};box-shadow:0 1px 3px rgba(0,0,0,.5)"></div>` });
+      const m = L.marker([o.lat, o.lng], { icon }).bindTooltip(o.name, { direction: "top" });
+      m.on("click", () => openModal(o));
+      m.on("mouseover", () => previewShow(o)); m.on("mouseout", () => setTimeout(previewHide, 200));
+      optGroup.addLayer(m); pinByName[idOf(o)] = m;
+    });
+  }
+  function fitArea() {
+    const t = selectedTown(); const r = regionById(state.region);
+    if (t && t.perimeter) map.flyTo(t.center || [t.lat, t.lng], t.zoom || 16, { duration: .6 });
+    else if (t) map.flyTo([t.lat, t.lng], t.zoom || 14, { duration: .6 });
+    else map.flyTo(r.center, r.zoom, { duration: .6 });
+  }
+  function fitPins() {
+    const pts = filtered().filter(o => o.lat != null).map(o => [o.lat, o.lng]);
+    if (pts.length) map.flyToBounds(pts, { padding: [40, 40], maxZoom: 15, duration: .6 });
+  }
+
+  /* ---- gallery / modal ---- */
+  function renderThumbs() {
+    const th = $("#thumbs"); th.innerHTML = "";
+    state.slides.forEach((s, k) => {
+      const inner = s.type === "img" ? `<img src="${esc(s.src)}" loading="lazy" alt="">`
+        : (s.type === "embed" ? `<span class="tv">GOOGLE<br>MAP</span>` : `<span class="tv">—</span>`);
+      const t = elc("button", "thumb" + (s.type === "img" ? "" : " add"), inner);
+      t.addEventListener("click", () => showSlide(k));
+      th.appendChild(t);
+    });
+    th.style.display = "flex";
+  }
+  function showSlide(i) {
+    state.slide = i; const s = state.slides[i]; if (!s) return;
+    const g = $("#gallery");
+    if (s.type === "img") {
+      g.innerHTML = "";
+      const im = elc("img"); im.src = s.src; im.loading = "lazy"; im.alt = "";
+      im.addEventListener("click", () => openLightbox(s.src));
+      im.addEventListener("error", () => {
+        if (s.alt && im.src !== s.alt) { im.src = s.alt; return; }
+        const ei = state.slides.findIndex(x => x.type === "embed"); if (ei >= 0 && ei !== i) showSlide(ei);
+      });
+      g.appendChild(im);
+      g.appendChild(elc("span", "slide-label", esc(s.label || "")));
+    } else if (s.type === "embed") {
+      g.innerHTML = `<iframe class="gmap" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${s.src}" title="Google map"></iframe>`;
+      g.appendChild(elc("span", "slide-label", esc(s.label || "Google map")));
+    } else {
+      g.innerHTML = `<div class="noimg"><div>No view available</div></div>`;
+    }
+    $$("#thumbs .thumb").forEach((t, k) => t.classList.toggle("act", k === i));
+  }
+  function galStep(d) { const n = state.slides.length; if (!n) return; showSlide((state.slide + d + n) % n); }
+
+  function buildActions(o) {
+    const box = $("#d-actions"); box.innerHTML = "";
+    const fav = elc("button", "favbtn" + (isFav(o) ? " on" : ""), (isFav(o) ? "\u2605" : "\u2606") + " Favorite");
+    fav.addEventListener("click", () => { toggleFav(o); buildActions(o); buildList(); drawMap(); });
+    box.appendChild(fav);
+    const cur = getStatus(o);
+    STATUSES.forEach(s => {
+      const b = elc("button", "stbtn st-" + s.id + (cur === s.id ? " on" : ""), s.name);
+      b.addEventListener("click", () => { setStatus(o, s.id); buildActions(o); buildList(); drawMap(); });
+      box.appendChild(b);
+    });
+  }
+  function buildLogistics(o) {
+    const box = $("#d-logistics"); box.innerHTML = "";
+    const rows = LOGI.filter(([k]) => o[k]).map(([k, label]) => `<div class="lg"><span class="lgk">${label}</span><span class="lgv">${esc(o[k])}</span></div>`);
+    box.innerHTML = rows.join("");
+  }
+
+  /* ---- media tab: categories (photos / videos / pdfs / links / contact) ---- */
+  function mediaOf(o) { return (MEDIA[idOf(o)] || []).map(m => typeof m === "string" ? { type: "link", value: m } : m); }
+  function addMedia(o, type, value) { value = (value || "").trim(); if (!value) return; const a = MEDIA[idOf(o)] || []; a.push({ type, value }); MEDIA[idOf(o)] = a; store.set("cal_media", MEDIA); renderMedia(o); }
+  function removeMedia(o, i) { const a = MEDIA[idOf(o)] || []; a.splice(i, 1); MEDIA[idOf(o)] = a; store.set("cal_media", MEDIA); renderMedia(o); }
+  function mediaEl(m) {
+    const url = m.value, u = (url || "").toLowerCase();
+    if (m.type === "contact") return `<div class="media-contact">\uD83D\uDCC7 ${esc(url)}</div>`;
+    if (m.type === "photo") return `<img src="${esc(url)}" loading="lazy" alt="">`;
+    if (m.type === "video") {
+      const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
+      if (yt) return `<iframe src="https://www.youtube.com/embed/${yt[1]}" allowfullscreen loading="lazy"></iframe>`;
+      const vm = u.match(/vimeo\.com\/(\d+)/);
+      if (vm) return `<iframe src="https://player.vimeo.com/video/${vm[1]}" allowfullscreen loading="lazy"></iframe>`;
+      if (/\.(mp4|webm|mov)(\?|$)/.test(u)) return `<video src="${esc(url)}" controls preload="none"></video>`;
+      return `<a class="media-file" href="${esc(url)}" target="_blank" rel="noopener">\u25B6 ${esc(url.replace(/^https?:\/\//, "").slice(0, 40))}</a>`;
+    }
+    if (m.type === "pdf") return `<a class="media-file" href="${esc(url)}" target="_blank" rel="noopener">\uD83D\uDCC4 ${esc(url.replace(/^https?:\/\//, "").slice(0, 40)) || "PDF"}</a>`;
+    return `<a class="media-file" href="${esc(url)}" target="_blank" rel="noopener">\uD83D\uDD17 ${esc(url.replace(/^https?:\/\//, "").slice(0, 40))}</a>`;
+  }
+  function renderMedia(o) {
+    const box = $("#media-list"); const a = mediaOf(o);
+    if (!a.length) { box.innerHTML = '<div class="media-empty">Nothing yet. Pick a type, paste a link (or type contact info), and Add.</div>'; return; }
+    box.innerHTML = "";
+    [["photo", "Photos"], ["video", "Videos"], ["pdf", "PDFs"], ["link", "Links"], ["contact", "Contact"]].forEach(([t, label]) => {
+      const items = a.map((m, i) => ({ m, i })).filter(x => x.m.type === t);
+      if (!items.length) return;
+      const sec = elc("div", "media-sec", `<div class="media-h">${label}</div>`);
+      const grid = elc("div", "media-grid" + (t === "contact" || t === "pdf" || t === "link" ? " list" : ""));
+      items.forEach(({ m, i }) => grid.appendChild(elc("div", "media-cell " + t, mediaEl(m) + `<button class="media-x" data-i="${i}" title="Remove">\u00D7</button>`)));
+      sec.appendChild(grid); box.appendChild(sec);
+    });
+    $$(".media-x", box).forEach(b => b.addEventListener("click", () => removeMedia(o, +b.dataset.i)));
+  }
+  function showTab(which) {
+    $("#pane-details").hidden = which !== "details";
+    $("#pane-media").hidden = which !== "media";
+    $("#tab-details").classList.toggle("on", which === "details");
+    $("#tab-media").classList.toggle("on", which === "media");
+  }
+
+  function openModal(o) {
+    state.current = o; previewHide();
+    const list = state.list.length ? state.list : filtered();
+    state.idx = list.indexOf(o);
+    markSelected(o);
+    if (pinByName[idOf(o)]) map.flyTo(pinByName[idOf(o)].getLatLng(), Math.max(map.getZoom(), 16), { duration: .5 });
+    $("#d-name").textContent = o.name || "Untitled";
+    $("#d-addr").textContent = (o.address || o.town || "") + (state.allRegions ? "  ·  " + regionById(o.region).name : "");
+    const links = $("#d-links"); links.innerHTML = "";
+    links.appendChild(mkLink(mapsLink(o), "\uD83D\uDCF7 Google photos", false));
+    if (o.lat != null) links.appendChild(mkLink(svLink(o), "Street View \u2197", true));
+    links.appendChild(mkLink(imgLink(o), "Image search \u2197", true));
+    buildActions(o); buildLogistics(o); renderMedia(o); showTab("details");
+    loadPhotos(o);
+    $("#modal").hidden = false;
+  }
+  function mkLink(href, txt, alt) { const a = elc("a", alt ? "alt" : "", txt); a.href = href; a.target = "_blank"; a.rel = "noopener"; return a; }
+  function closeModal() { $("#modal").hidden = true; state.current = null; markSelected(null); }
+  function step(d) {
+    const list = state.list.length ? state.list : filtered(); if (!list.length) return;
+    let i = state.idx + d; if (i < 0) i = list.length - 1; if (i >= list.length) i = 0;
+    openModal(list[i]);
+  }
+
+  /* ---- lightbox ---- */
+  let lbZoom = 1;
+  function openLightbox(src) { const lb = $("#lightbox"); $("#lb-img").src = src; lbZoom = 1; applyZoom(); lb.hidden = false; }
+  function closeLightbox() { $("#lightbox").hidden = true; }
+  function applyZoom() { $("#lb-img").style.transform = "scale(" + lbZoom + ")"; }
+  function zoomBy(f) { lbZoom = Math.min(6, Math.max(1, lbZoom * f)); applyZoom(); }
+
+  /* ---- switch / refresh ---- */
+  function switchRegion(id) {
+    state.allRegions = false; state.region = id; state.q = ""; state.scene = "all"; state.filter = "all";
+    $("#search").value = "";
+    const r = regionById(id);
+    state.area = r.defaultArea || null;
+    document.documentElement.style.setProperty("--rc", r.color);
+    refresh(); fitArea();
+  }
+  function refresh() {
+    const r = regionById(state.region); const t = selectedTown();
+    document.documentElement.style.setProperty("--rc", state.allRegions ? "#6b5d47" : r.color);
+    $("#loc-label").textContent = state.allRegions ? "All regions" : (t ? t.name : "All " + r.name);
+    const rn = $("#rnote"); const note = state.allRegions ? "" : (r.note || "");
+    rn.textContent = note; rn.style.display = note ? "block" : "none";
+    $$(".pill").forEach((p, i) => { if (i < CONFIG.regions.length) p.setAttribute("aria-selected", !state.allRegions && CONFIG.regions[i].id === state.region); });
+    const allp = $(".pill.allregions"); if (allp) allp.setAttribute("aria-selected", state.allRegions);
+    buildAreas(); buildSceneSelect(); buildFilterSelect(); buildList(); drawMap();
+  }
+
+  /* ---- boot ---- */
+  document.addEventListener("DOMContentLoaded", () => {
+    const r = regionById(state.region);
+    state.area = r.defaultArea || null;
+    document.documentElement.style.setProperty("--rc", r.color);
+    $("#title").textContent = CONFIG.title;
+    buildPills();
+    initMap();
+    refresh();
+    $("#search").addEventListener("input", (e) => { state.q = e.target.value; buildList(); drawMap(); if (state.q) fitPins(); });
+    $("#scene-select").addEventListener("change", (e) => { state.scene = e.target.value; buildList(); drawMap(); });
+    $("#filter-select").addEventListener("change", (e) => { state.filter = e.target.value; buildList(); drawMap(); });
+    function goEnchantment() {
+      state.allRegions = false; state.region = "av"; state.area = "rosamond";
+      state.scene = "all"; state.filter = "all"; state.q = ""; $("#search").value = "";
+      document.documentElement.style.setProperty("--rc", regionById("av").color);
+      refresh(); fitArea();
+    }
+    $("#fit").addEventListener("click", goEnchantment);
+    $("#x").addEventListener("click", closeModal);
+    $("#modal-bg").addEventListener("click", closeModal);
+    $("#prev").addEventListener("click", () => step(-1));
+    $("#next").addEventListener("click", () => step(1));
+    $("#gprev").addEventListener("click", () => galStep(-1));
+    $("#gnext").addEventListener("click", () => galStep(1));
+    $("#tab-details").addEventListener("click", () => showTab("details"));
+    $("#tab-media").addEventListener("click", () => showTab("media"));
+    $("#media-add-btn").addEventListener("click", () => { const inp = $("#media-url"); const ty = $("#media-type").value; if (state.current) { addMedia(state.current, ty, inp.value); inp.value = ""; } });
+    $("#media-url").addEventListener("keydown", (e) => { if (e.key === "Enter" && state.current) { const inp = $("#media-url"); const ty = $("#media-type").value; addMedia(state.current, ty, inp.value); inp.value = ""; } });
+    // lightbox
+    $("#lb-bg").addEventListener("click", closeLightbox);
+    $("#lb-close").addEventListener("click", closeLightbox);
+    $("#lb-img").addEventListener("click", (e) => { e.stopPropagation(); zoomBy(1.5); });
+    $("#lightbox").addEventListener("wheel", (e) => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15); }, { passive: false });
+    document.addEventListener("keydown", (e) => {
+      if (!$("#lightbox").hidden) {
+        if (e.key === "Escape" || e.key === " ") { e.preventDefault(); closeLightbox(); }
+        if (e.key === "+" || e.key === "=") zoomBy(1.25);
+        if (e.key === "-") zoomBy(1 / 1.25);
+        return;
+      }
+      if ($("#modal").hidden) return;
+      if (e.key === "Escape") closeModal();
+      if (e.key === "ArrowLeft") galStep(-1);
+      if (e.key === "ArrowRight") galStep(1);
+      if (e.key === "[") step(-1);
+      if (e.key === "]") step(1);
+    });
+    const tl = $("#tab-list"), tm = $("#tab-map");
+    if (tl && tm) {
+      tl.addEventListener("click", () => { document.body.classList.remove("show-map"); document.body.classList.add("show-list"); });
+      tm.addEventListener("click", () => { document.body.classList.remove("show-list"); document.body.classList.add("show-map"); setTimeout(() => map.invalidateSize(), 120); });
+    }
+    if (window.innerWidth <= 820) document.body.classList.add("show-list");
+    $("#foot").innerHTML = "<b style='color:#C99A2E'>BUILD 13 — real satellite photos (Google) + media + scene colors</b> · hover to peek · click a photo to zoom (space/esc) · \u2605 & status save in your browser.";
+  });
+})();
+
+</script>
+</body>
+</html>
