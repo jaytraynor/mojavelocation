@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CALAMITIES — Enchantment Scout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Courier+Prime:wght@400;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="hdr">
+    <div class="hdr-l">
+      <h1 id="title">CALAMITIES</h1>
+      <span class="loc" id="loc-label">Enchantment · Rosamond, CA</span>
+    </div>
+    <div class="pills" id="pills" aria-label="Regions"></div>
+  </header>
+
+  <div class="areas" id="areas" aria-label="Sub-areas"></div>
+  <div class="rnote" id="rnote"></div>
+  <div class="mobtabs">
+    <button id="tab-list">▤ List</button>
+    <button id="tab-map">◎ Map</button>
+  </div>
+
+  <div class="bar">
+    <input id="search" class="search" type="search" placeholder="Search locations…" aria-label="Search locations">
+    <span class="count" id="count"></span>
+    <label class="showlbl">Show <select id="scene-select" class="select"></select></label>
+    <label class="showlbl">Filter <select id="filter-select" class="select"></select></label>
+    <button id="fit" class="ghost" title="Zoom to Enchantment">⌖ Enchantment</button>
+  </div>
+
+  <div class="wrap">
+    <aside class="list" id="list" aria-label="Locations"></aside>
+    <div id="map" aria-label="Map"></div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-bg" id="modal-bg"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="d-name">
+      <button class="x" id="x" aria-label="Close">×</button>
+      <div class="galrow">
+        <div class="galwrap">
+          <button class="garrow gprev" id="gprev" aria-label="Previous picture">‹</button>
+          <div class="gallery" id="gallery"></div>
+          <button class="garrow gnext" id="gnext" aria-label="Next picture">›</button>
+        </div>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+      <div class="info">
+        <h2 id="d-name"></h2>
+        <div class="addr" id="d-addr"></div>
+        <div class="dactions" id="d-actions"></div>
+        <div class="tabs2">
+          <button class="t2 on" id="tab-details">Details</button>
+          <button class="t2" id="tab-media">Media</button>
+        </div>
+        <div class="tabpane" id="pane-details">
+          <div class="dlinks" id="d-links"></div>
+          <div class="logistics" id="d-logistics"></div>
+        </div>
+        <div class="tabpane" id="pane-media" hidden>
+          <div class="media-add">
+            <input id="media-url" type="text" placeholder="Paste a photo, video, PDF, YouTube, or Drive link…">
+            <button id="media-add-btn" class="ghost">Add</button>
+          </div>
+          <div class="media-list" id="media-list"></div>
+        </div>
+        <div class="nav"><button id="prev" class="ghost">‹ Prev</button><button id="next" class="ghost">Next ›</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview" id="preview"></div>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <div class="lb-bg" id="lb-bg"></div>
+    <button class="lb-close" id="lb-close" aria-label="Close">×</button>
+    <img id="lb-img" alt="">
+    <div class="lb-hint">scroll or click to zoom · space / esc / tap to close</div>
+  </div>
+
+  <footer class="foot" id="foot"></footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
